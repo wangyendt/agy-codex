@@ -147,10 +147,32 @@ export function prefixedBins(name: string, prefix?: string): string[] {
     : [join(prefix, 'bin', name)];
 }
 
+export function linuxDesktopPaths(env = process.env, home = homedir()): string[] {
+  // The Linux desktop package is named ChatGPT and is not a CLI on PATH.
+  const roots = [
+    '/usr/lib/chatgpt', '/usr/lib/codex',
+    '/opt/ChatGPT', '/opt/chatgpt', '/opt/Codex', '/opt/codex',
+    join(env.XDG_DATA_HOME || join(home, '.local', 'share'), 'chatgpt'),
+    join(env.XDG_DATA_HOME || join(home, '.local', 'share'), 'codex'),
+  ];
+  // Resolve symlinks such as /usr/bin/chatgpt -> /usr/lib/chatgpt/codex-launcher.
+  // Inspect adjacent resources without executing the GUI launcher itself.
+  for (const name of ['chatgpt', 'codex-desktop']) {
+    for (const launcher of findOnPath(name, env)) {
+      try { roots.push(dirname(realpathSync(launcher))); }
+      catch { /* The application may have been removed during discovery. */ }
+    }
+  }
+  return [...new Set(roots)].flatMap((root) => [
+    join(root, 'resources', 'codex'), join(root, 'resources', 'codex-cli', 'codex'),
+  ]);
+}
+
 async function desktopPaths(exec: Command, env: NodeJS.ProcessEnv): Promise<string[]> {
   if (process.platform === 'darwin') {
     return [macDesktop, join(homedir(), macDesktop.replace(/^\//, ''))];
   }
+  if (process.platform === 'linux') return linuxDesktopPaths(env);
   if (process.platform !== 'win32') return [];
   const install = await exec(powerShell(env), ['-NoProfile', '-NonInteractive', '-Command',
     "Get-AppxPackage | Where-Object { $_.Name -match '^OpenAI\\.(ChatGPT|Codex)$' } | Select-Object -ExpandProperty InstallLocation"], { env });

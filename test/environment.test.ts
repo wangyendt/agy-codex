@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
+import { symlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { authStatus, detectProxy, latest, parseMacProxy, parseWindowsProxy, proxyEnvironment, sdkInfo, selectCodex } from '../src/environment.js';
+import { authStatus, detectProxy, findCodex, latest, linuxDesktopPaths, parseMacProxy, parseWindowsProxy, proxyEnvironment, sdkInfo, selectCodex } from '../src/environment.js';
 import { npmShimTarget } from '../src/process.js';
 import type { Command } from '../src/process.js';
 import { compareVersions, readVersion } from '../src/semver.js';
@@ -25,6 +26,59 @@ test('selects newest usable Codex; prefers standalone on ties', () => {
   assert.equal(selectCodex({ ...cli, version: '0.100.0' }, desktop), desktop);
   assert.equal(selectCodex({ ...cli, version: null }, desktop), desktop);
   assert.equal(selectCodex({ ...cli, version: null }), undefined);
+});
+
+test('Linux discovers Desktop bundled CLI through a symlinked ChatGPT launcher', { skip: process.platform !== 'linux' }, async (t) => {
+  const root = fixture(t);
+  const bin = join(root, 'bin');
+  const launcher = put(join(root, 'lib', 'chatgpt', 'codex-launcher'), '', 0o755);
+  put(join(bin, 'unused'), '');
+  symlinkSync(launcher, join(bin, 'chatgpt'));
+  const desktop = put(join(root, 'lib', 'chatgpt', 'resources', 'codex'), '', 0o755);
+  const standalone = put(join(bin, 'codex'), '', 0o755);
+  for (const desktopVersion of ['0.163.0-alpha.10.2', '0.172.0', '0.173.0']) {
+    const calls: string[] = [];
+    const exec: Command = async (path, args) => {
+      assert.deepEqual(args, ['--version']);
+      calls.push(path);
+      const version = path === desktop ? desktopVersion : path === standalone ? '0.172.0' : undefined;
+      return { code: version ? 0 : 1, stdout: version ? 'codex-cli ' + version : '', stderr: '' };
+    };
+    const found = await findCodex({}, exec, { PATH: bin });
+    assert.deepEqual(found.desktop, { path: desktop, version: desktopVersion });
+    assert.equal(found.selected?.path, desktopVersion === '0.173.0' ? desktop : standalone);
+    assert.equal(calls.filter((path) => path === desktop).length, 1);
+    assert.ok(!calls.includes(launcher), 'must probe the bundled CLI, not launch the GUI');
+  }
+});
+
+test('Linux Desktop candidates include the Ubuntu package path and XDG user installs', (t) => {
+  const home = join(fixture(t), 'home');
+  const xdg = join(home, 'custom-data');
+  const paths = linuxDesktopPaths({ PATH: '', XDG_DATA_HOME: xdg }, home);
+  assert.ok(paths.includes(join('/usr/lib/chatgpt', 'resources', 'codex')));
+  assert.ok(paths.includes(join('/opt/Codex', 'resources', 'codex')));
+  assert.ok(paths.includes(join(xdg, 'chatgpt', 'resources', 'codex')));
+  assert.ok(!paths.includes(join(home, '.local', 'share', 'chatgpt', 'resources', 'codex')));
+  assert.ok(linuxDesktopPaths({ PATH: '', XDG_DATA_HOME: '' }, home)
+    .includes(join(home, '.local', 'share', 'chatgpt', 'resources', 'codex')));
+});
+
+test('Linux discovers a PATH-installed Codex Desktop and ignores non-executable bundled files', { skip: process.platform !== 'linux' }, async (t) => {
+  const root = fixture(t);
+  const launcher = put(join(root, 'codex-desktop'), '', 0o755);
+  const desktop = put(join(root, 'resources', 'codex-cli', 'codex'), '', 0o755);
+  const unusable = put(join(root, 'resources', 'codex'), '', 0o644);
+  const calls: string[] = [];
+  const exec: Command = async (path) => {
+    calls.push(path);
+    return { code: path === desktop ? 0 : 1, stdout: path === desktop ? 'codex-cli 0.172.0' : '', stderr: '' };
+  };
+  const found = await findCodex({}, exec, { PATH: root });
+  assert.deepEqual(found.desktop, { path: desktop, version: '0.172.0' });
+  assert.equal(found.selected, found.desktop);
+  assert.ok(!calls.includes(launcher));
+  assert.ok(!calls.includes(unusable));
 });
 
 test('parses macOS scutil proxy fields independently and handles IPv6', () => {

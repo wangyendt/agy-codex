@@ -45,6 +45,8 @@ agy-codex run --cwd . --review --uncommitted
 
 用 `agy-codex <命令> --help` 查看全部参数，包括自定义配置目录、npm registry/prefix、模型和二进制路径。
 
+Linux Desktop 检测包含 Ubuntu 包的 `/usr/lib/chatgpt/resources/codex`、`/usr/lib/codex` 和 `/opt/ChatGPT`、`/opt/Codex`（含小写目录）下的资源目录，以及 `$XDG_DATA_HOME/chatgpt`、`$XDG_DATA_HOME/codex`（默认 `~/.local/share`）。也会解析 PATH 中 `chatgpt` / `codex-desktop` 启动器的符号链接，查找旁边的 `resources/codex` 或 `resources/codex-cli/codex`，不会启动 GUI。没有可执行的 bundled CLI 时仍显示 `missing`；两种 CLI 都可用时选版本较新者，同版本优先独立 CLI。
+
 ## 开发和发布
 
 ```sh

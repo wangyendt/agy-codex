@@ -45,6 +45,8 @@ The managed files are `~/.gemini/config/AGENTS.md` and `~/.gemini/config/rules/c
 
 Run `agy-codex <command> --help` for all options, including custom home, npm registry/prefix, model, and binary overrides.
 
+Linux Desktop detection includes the Ubuntu package's `/usr/lib/chatgpt/resources/codex`, resource directories under `/usr/lib/codex`, `/opt/ChatGPT`, `/opt/Codex` (including lowercase directory names), and `$XDG_DATA_HOME/chatgpt` or `$XDG_DATA_HOME/codex` (defaulting to `~/.local/share`). It also resolves symlinked `chatgpt` / `codex-desktop` launchers on PATH and looks for adjacent `resources/codex` or `resources/codex-cli/codex`, without launching the GUI. A missing executable bundled CLI still reports `missing`. The newer usable CLI wins; ties prefer the standalone CLI.
+
 ## Development and releases
 
 ```sh
