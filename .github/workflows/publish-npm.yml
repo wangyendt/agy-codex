@@ -1,0 +1,73 @@
+name: Publish npm
+
+on:
+  push:
+    branches: [main]
+    paths: [package.json, package-lock.json]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Expected package version (optional)'
+        type: string
+        required: false
+
+concurrency:
+  group: agy-c-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    if: >-
+      ${{ github.ref == 'refs/heads/main' && vars.AUTO_PUBLISH_NPM == 'true' &&
+          (github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message || '', 'chore(release): v')) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - run: npm ci
+      - run: npm run verify
+
+      - name: Ensure the version is unpublished and untagged
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [ -n "$EXPECTED_VERSION" ] && [ "$version" != "$EXPECTED_VERSION" ]; then
+            echo "Expected $EXPECTED_VERSION; checked out $version." >&2
+            exit 1
+          fi
+          if git show-ref --verify --quiet "refs/tags/v$version"; then
+            echo "Tag v$version already exists." >&2
+            exit 1
+          fi
+          if response=$(npm view "agy-c@$version" version --json --loglevel=silent); then
+            echo "agy-c@$version already exists; refusing to publish or retag." >&2
+            exit 1
+          fi
+          printf '%s' "$response" | node --input-type=module -e \
+            "import {readFileSync} from 'node:fs'; if (JSON.parse(readFileSync(0, 'utf8')).error?.code !== 'E404') process.exit(1)"
+
+      - run: npm publish --access public --provenance
+
+      - name: Tag the published commit
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          version=$(node -p "require('./package.json').version")
+          git tag -a "v$version" -m "v$version"
+          git push origin "refs/tags/v$version"

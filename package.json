@@ -1,0 +1,61 @@
+{
+  "name": "agy-c",
+  "version": "0.1.0",
+  "description": "Cross-platform Antigravity and Codex delegation toolkit",
+  "type": "module",
+  "author": "wang121ye",
+  "license": "MIT",
+  "homepage": "https://github.com/wangyendt/agy-c#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wangyendt/agy-c.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wangyendt/agy-c/issues"
+  },
+  "keywords": [
+    "antigravity",
+    "codex",
+    "cli",
+    "agent",
+    "typescript"
+  ],
+  "bin": {
+    "agy-c": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README_EN.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node scripts/clean.mjs",
+    "dev": "tsx src/cli.ts",
+    "lint": "eslint src test scripts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node scripts/test.mjs",
+    "pack:check": "node scripts/pack-check.mjs",
+    "smoke:install": "node scripts/install-smoke.mjs",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run pack:check && npm run smoke:install",
+    "prepublishOnly": "npm run verify"
+  },
+  "dependencies": {
+    "commander": "^14.0.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^20.19.43",
+    "eslint": "^9.39.5",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.66.0"
+  }
+}

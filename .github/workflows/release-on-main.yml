@@ -1,0 +1,56 @@
+name: Bump patch on main
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - src/**
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+      - tsconfig.build.json
+  workflow_dispatch:
+
+concurrency:
+  group: agy-c-release-main
+  cancel-in-progress: false
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  bump:
+    if: >-
+      ${{ github.ref == 'refs/heads/main' && vars.AUTO_PUBLISH_NPM == 'true' &&
+          !startsWith(github.event.head_commit.message || '', 'chore(release): v') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          package-manager-cache: false
+
+      - run: npm ci
+      - run: npm run verify
+
+      - name: Bump, push, and dispatch the publisher
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          npm version patch --no-git-tag-version
+          version=$(node -p "require('./package.json').version")
+          git add package.json package-lock.json
+          git commit -m "chore(release): v$version"
+          git push origin HEAD:main
+          # GITHUB_TOKEN pushes do not start other workflows; an explicit dispatch does.
+          gh workflow run publish-npm.yml --ref main -f "version=$version"
