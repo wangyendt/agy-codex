@@ -35,7 +35,7 @@ test('setup prompts once with [Y/n] for missing packages when interactive', asyn
   const report = await setup({ geminiHome: fixture(t), syncSkill: false, json: true }, f.deps);
   assert.match(f.questions[0] ?? '', /@openai\/codex, codex-task\? \[Y\/n\]/);
   assert.equal(f.questions.length, 1);
-  assert.deepEqual(f.calls.filter(([first]) => first === 'install'), [['install', '-g', '@openai/codex', 'codex-task']]);
+  assert.deepEqual(f.calls.filter(([first]) => first === 'install'), [['install', '-g', '@openai/codex', 'codex-task', '--prefer-online']]);
   assert.equal(report.ok, true);
   assert.equal(report.commands[0]?.status, 'executed');
   assert.equal(report.files.length, 2);
@@ -60,7 +60,7 @@ test('setup --yes or --install-deps auto-installs and delegates prefix/registry 
     assert.equal(report.ok, true);
     assert.equal(f.questions.length, 0);
     assert.deepEqual(f.calls.filter(([first]) => first === 'install'), [
-      ['install', '-g', '@openai/codex', 'codex-task', '--prefix=' + resolve(prefix), '--registry=' + registry],
+      ['install', '-g', '@openai/codex', 'codex-task', '--prefer-online', '--prefix=' + resolve(prefix), '--registry=' + registry],
     ]);
   }
 });
@@ -73,7 +73,7 @@ test('setup never silently installs for non-TTY, declined, or --no-install-deps'
     assert.equal(f.questions.length, askCount);
     assert.equal(f.calls.some(([first]) => first === 'install'), false);
     assert.equal(report.commands[0]?.status, 'skipped');
-    assert.deepEqual(report.hints, ['npm install -g @openai/codex codex-task']);
+    assert.deepEqual(report.hints, ['npm install -g @openai/codex codex-task --prefer-online']);
     assert.equal(existsSync(paths(geminiHome).protocol), true);
   }
 });
@@ -106,10 +106,12 @@ test('upgrade honors --only, --no-rules, --no-restart-service, and dry-run', asy
   assert.throws(() => parseOnly('codex,sdk'), /--only expects/);
   const f = fake({ lookup: '9.5.2' });
   const dry = await upgrade({ geminiHome, only: 'codex-task', yes: true, rules: false, restartService: false, dryRun: true }, f.deps);
-  assert.deepEqual(dry.commands, [{ command: 'npm', args: ['install', '-g', 'codex-task@latest'], status: 'planned' }]);
+  assert.deepEqual(dry.commands, [{ command: 'npm', args: ['install', '-g', 'codex-task@latest', '--prefer-online'], status: 'planned' }]);
   assert.equal(f.calls.some(([first]) => first === 'install'), false);
   const actual = await upgrade({ geminiHome, only: 'codex', yes: true, rules: false, restartService: false, json: true }, f.deps);
-  assert.deepEqual(actual.commands, [{ command: 'npm', args: ['install', '-g', '@openai/codex@latest'], status: 'executed' }]);
+  const install = ['install', '-g', '@openai/codex@latest', '--prefer-online'];
+  assert.deepEqual(actual.commands, [{ command: 'npm', args: install, status: 'executed' }]);
+  assert.deepEqual(f.calls.filter(([first]) => first === 'install'), [install]);
   assert.equal(existsSync(geminiHome), false);
 });
 

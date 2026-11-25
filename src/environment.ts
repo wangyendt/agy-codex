@@ -202,7 +202,7 @@ export async function latest(name: string, options: ToolOptions, offline: boolea
   const npm = npmExecutable(env);
   if (!npm) return { version: null, status: 'unavailable' };
   // npm still prunes its log directory when logs-max is zero; leave retention to the user.
-  const result = await exec(npm, ['view', name + '@latest', 'version', '--json', '--fetch-retries=0',
+  const result = await exec(npm, ['view', name + '@latest', 'version', '--prefer-online', '--json', '--fetch-retries=0',
     '--fetch-timeout=8000', '--loglevel=silent', ...npmFlags(options)], { env, timeout: 10000 });
   try {
     const data: unknown = JSON.parse(result.stdout);

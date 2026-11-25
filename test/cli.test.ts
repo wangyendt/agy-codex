@@ -4,6 +4,7 @@ import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { manifest } from '../src/package.js';
 import { paths, start } from '../src/rules.js';
 import type { RunReport } from '../src/run.js';
 import { codexArgs } from '../src/run.js';
@@ -31,8 +32,10 @@ test('CLI setup and uninstall round-trip managed blocks; offline doctor emits cl
 
   const local = join(root, 'codex');
   put(join(local, 'auth.json'), '{"OPENAI_API_KEY":"super-secret"}');
-  const doctor = invoke(['doctor', '--offline', '--json', '--gemini-home', home, '--codex-home', local]);
+  const doctor = invoke(['doctor', '--offline', '--json', '--gemini-home', home, '--codex-home', local], '',
+    { ...process.env, NO_COLOR: undefined, FORCE_COLOR: '1' });
   assert.equal(doctor.status, 0, doctor.stderr);
+  assert.ok(!doctor.stdout.includes('\x1b') && !doctor.stderr.includes('\x1b'));
   assert.ok(!doctor.stdout.includes('super-secret'));
   const health = JSON.parse(doctor.stdout);
   assert.equal(health.offline, true);
@@ -44,6 +47,51 @@ test('CLI setup and uninstall round-trip managed blocks; offline doctor emits cl
   assert.equal(uninstall.status, 0, uninstall.stderr);
   assert.equal(readFileSync(p.agents, 'utf8'), 'My personal note\n');
   assert.equal(existsSync(p.protocol), false);
+});
+
+test('piped doctor is plain by default, honors FORCE_COLOR, and lets NO_COLOR opt out', (t) => {
+  const home = fixture(t);
+  const args = ['doctor', '--offline', '--gemini-home', home, '--codex-home', home];
+  const env = { ...process.env, FORCE_COLOR: undefined, NO_COLOR: undefined };
+  const plain = invoke(args, '', env);
+  assert.equal(plain.status, 0, plain.stderr);
+  assert.ok(!plain.stdout.includes('\x1b'));
+  const colored = invoke(args, '', { ...env, FORCE_COLOR: '1' });
+  assert.equal(colored.status, 0, colored.stderr);
+  assert.ok(colored.stdout.startsWith('\x1b[1mComponent\x1b[0m'));
+  const disabled = invoke(args, '', { ...env, FORCE_COLOR: '1', NO_COLOR: '1' });
+  assert.equal(disabled.status, 0, disabled.stderr);
+  assert.equal(disabled.stdout, plain.stdout);
+});
+
+test('upgrade lists verified current packages in human output and keeps JSON clean', (t) => {
+  const root = fixture(t);
+  const npm = put(join(root, 'npm-cli.js'), `
+    if (process.argv[2] !== 'view') throw new Error('Unexpected npm command');
+    if (process.argv[3] === 'agy-codex@latest') console.log(JSON.stringify(${JSON.stringify(manifest.version)}));
+    else {
+      console.log('{"error":{"code":"E404"}}');
+      process.exitCode = 1;
+    }
+  `, 0o755);
+  const args = ['upgrade', '--only', 'agy-codex', '--no-rules', '--gemini-home', root];
+  const env = { ...process.env, npm_execpath: npm, FORCE_COLOR: '1' };
+  const message = `All checked npm packages are up to date (agy-codex ${manifest.version}).`;
+  const human = invoke(args, '', env);
+  assert.equal(human.status, 0, human.stderr);
+  assert.ok(human.stdout.split('\n').includes(message));
+
+  const json = invoke([...args, '--json'], '', env);
+  assert.equal(json.status, 0, json.stderr);
+  assert.ok(!json.stdout.includes('\x1b'));
+  const report = JSON.parse(json.stdout);
+  assert.deepEqual(report.commands, []);
+  assert.ok(report.observations.includes(message));
+
+  const unpublished = invoke([...args, '--only', 'agy-codex,codex-task'], '', env);
+  assert.equal(unpublished.status, 0, unpublished.stderr);
+  assert.match(unpublished.stdout, /codex-task is not published/);
+  assert.doesNotMatch(unpublished.stdout, /All checked npm packages are up to date/);
 });
 
 test('CLI --no-install-deps overrides both opt-in aliases regardless of order', (t) => {

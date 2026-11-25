@@ -52,7 +52,7 @@ jobs:
             echo "Tag v$version already exists." >&2
             exit 1
           fi
-          if response=$(npm view "agy-codex@$version" version --json --loglevel=silent); then
+          if response=$(npm view "agy-codex@$version" version --prefer-online --json --loglevel=silent); then
             echo "agy-codex@$version already exists; refusing to publish or retag." >&2
             exit 1
           fi

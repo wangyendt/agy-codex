@@ -107,11 +107,12 @@ test('Windows settles npm batch shims to fixed Node/.exe paths without shell eva
   assert.equal(npmShimTarget('echo unsafe & codex %*'), undefined);
 });
 
-test('registry lookup separates offline, unpublished, failure, and verified versions', async () => {
-  const env = process.env;
+test('registry lookup prefers online and separates offline, unpublished, failure, and verified versions', async (t) => {
+  const env = { ...process.env, npm_execpath: put(join(fixture(t), 'npm-cli.js'), '', 0o755) };
   const never: Command = async () => assert.fail('offline doctor called the registry');
   assert.deepEqual(await latest('agy-codex', {}, true, never, env), { version: null, status: 'offline' });
   const fixed = (code: number, stdout: string): Command => async (_file, args) => {
+    assert.ok(args.includes('--prefer-online'));
     assert.ok(!args.some((arg) => arg.startsWith('--logs-max')));
     return { code, stdout, stderr: 'private' };
   };

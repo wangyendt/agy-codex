@@ -82,7 +82,7 @@ export function shellCommand(file: string, args: string[]): string {
 
 async function install(packages: string[], options: ManagementOpts, deps: ManagementDeps, report: Report, env: NodeJS.ProcessEnv) {
   if (!packages.length) return false;
-  const args = ['install', '-g', ...packages, ...npmFlags(options)];
+  const args = ['install', '-g', ...packages, '--prefer-online', ...npmFlags(options)];
   const action: Action = { command: 'npm', args, status: 'skipped' };
   report.commands.push(action);
   if (options.dryRun) {
@@ -178,6 +178,13 @@ export async function upgrade(options: UpgradeOpts, services = deps()): Promise<
   const { env } = await detectProxy(services.exec, services.env);
   const before = await versions(options, false, services.exec, env);
   const report = reportFor(options);
+  const current = components.flatMap((name) => {
+    const { status, version } = before[name];
+    return status === 'current' && version ? [packageNames[name] + ' ' + version] : [];
+  });
+  if (current.length === components.length) {
+    report.observations.push('All checked npm packages are up to date (' + current.join(', ') + ').');
+  }
   const packages = components.filter((name) => {
     const item = before[name];
     if (item.registry === 'unpublished') {

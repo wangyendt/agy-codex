@@ -2,6 +2,7 @@
 import { Command, Option } from 'commander';
 import { doctor, setup, shellCommand, uninstall, upgrade } from './management.js';
 import type { ManagementOpts } from './management.js';
+import { colorEnabled, formatDoctor } from './output.js';
 import { manifest } from './package.js';
 import { defaultThreadSource, run, sandboxes } from './run.js';
 import type { RunOpts } from './run.js';
@@ -73,25 +74,7 @@ cli.command('doctor').description('Check tool versions, auth expiry, rules, and 
   .action(async (options) => {
     const report = await doctor(options);
     if (options.json) { json(report); return; }
-    const labels = {
-      'agy-codex': 'agy-codex',
-      codex: '@openai/codex (standalone)',
-      desktop: 'Codex Desktop (bundled CLI)',
-      'codex-task': 'codex-task',
-      sdk: '@openai/codex-sdk (in codex-task)',
-    } as const;
-    const rows = Object.entries(report.components).map(([key, value]) => [
-      labels[key as keyof typeof labels], value.version ?? '—', value.latest ?? '—',
-      value.status + (value.registry !== 'ok' ? '; npm ' + value.registry : ''), value.path ?? '—',
-    ]);
-    const header = ['Component', 'Local', 'Latest', 'Status', 'Path'];
-    const widths = header.map((value, index) => Math.max(value.length, ...rows.map((row) => row[index]?.length ?? 0)));
-    for (const row of [header, ...rows]) line(row.map((value, index) => index === row.length - 1 ? value : value.padEnd(widths[index]!)).join('  '));
-    line('Selected Codex: ' + (report.selectedCodex ? report.selectedCodex.path + ' (' + report.selectedCodex.version + ')' : 'none'));
-    line('Auth: ' + report.auth.status + (report.auth.expiresAt ? ' (access token expires ' + report.auth.expiresAt + ')' : '') + ' — ' + report.auth.path);
-    for (const rule of Object.values(report.rules)) line('Rule: ' + rule.status + ' — ' + rule.path);
-    line('Proxy (' + report.platform + '): HTTP=' + report.proxy.http + ' HTTPS=' + report.proxy.https + ' NO_PROXY=' + report.proxy.noProxy);
-    for (const note of report.notes) line(note);
+    line(formatDoctor(report, colorEnabled()));
   });
 
 packages(files(cli.command('upgrade').description('Check npm versions, upgrade tools, and refresh rules')))
