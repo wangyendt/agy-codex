@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: agy-c-release-main
+  group: agy-codex-release-main
   cancel-in-progress: false
 
 permissions:

@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { managedFile, readOptional, writeAtomic } from './fs.js';
 import { agents, protocol, protocolHeader } from './templates.js';
 
-export const start = '<!-- agy-c:start -->';
-export const end = '<!-- agy-c:end -->';
+export const start = '<!-- agy-codex:start -->';
+export const end = '<!-- agy-codex:end -->';
 
 export interface RuleOptions {
   geminiHome: string;
@@ -16,18 +16,15 @@ interface Span { from: number; to: number }
 interface Change { path: string; action: 'write' | 'remove'; text?: string; mode?: number; migrated?: boolean }
 interface RulePlan { changes: Change[]; warnings: string[] }
 
-function spans(text: string) {
-  return [...text.matchAll(/^[ \t]*<!--[ \t]*agy-c:(start|end)[ \t]*-->[ \t]*(?:\r?\n|$)/gm)];
-}
-
-export function block(text: string): Span | undefined {
-  const markers = spans(text);
+export function block(text: string): (Span & { legacyMarkers: boolean }) | undefined {
+  // Recognize the previous package's markers so setup replaces the block in place.
+  const markers = [...text.matchAll(/^[ \t]*<!--[ \t]*(agy-codex|agy-c):(start|end)[ \t]*-->[ \t]*(?:\r?\n|$)/gm)];
   if (!markers.length) return undefined;
   const [first, last] = markers;
-  if (markers.length !== 2 || first?.[1] !== 'start' || last?.[1] !== 'end') {
-    throw new Error('Invalid agy-c markers (expected one ordered pair).');
+  if (markers.length !== 2 || first?.[2] !== 'start' || last?.[2] !== 'end' || first[1] !== last[1]) {
+    throw new Error('Invalid agy-codex markers (expected one ordered pair).');
   }
-  return { from: first.index, to: last.index + last[0].length };
+  return { from: first.index, to: last.index + last[0].length, legacyMarkers: first[1] === 'agy-c' };
 }
 
 const normalize = (value: string) => value.replace(/\r\n/g, '\n');
@@ -80,15 +77,16 @@ function ruleFile(path: string, body: string, asProtocol: boolean, plan: RulePla
   if (range) {
     const header = headerPattern.exec(text);
     if (asProtocol && (!header || header.index !== 0 || header[0].length > range.from)) {
-      throw new Error(path + ': expected YAML frontmatter before the agy-c block.');
+      throw new Error(path + ': expected YAML frontmatter before the agy-codex block.');
     }
     next = text.slice(0, range.from) + rendered + text.slice(range.to);
+    migrated = range.legacyMarkers;
   } else {
-    range = legacySpan(text, asProtocol ? legacy.protocol : legacy.agents);
-    if (range && (!asProtocol || digest(text.slice(0, range.from)) === legacy.header)) {
+    const legacyRange = legacySpan(text, asProtocol ? legacy.protocol : legacy.agents);
+    if (legacyRange && (!asProtocol || digest(text.slice(0, legacyRange.from)) === legacy.header)) {
       const before = asProtocol ? protocolHeader.replace(/\n/g, text.includes('\r\n') ? '\r\n' : '\n')
-        + (text.includes('\r\n') ? '\r\n\r\n' : '\n\n') : text.slice(0, range.from);
-      next = before + rendered + text.slice(range.to);
+        + (text.includes('\r\n') ? '\r\n\r\n' : '\n\n') : text.slice(0, legacyRange.from);
+      next = before + rendered + text.slice(legacyRange.to);
       migrated = true;
     } else if (asProtocol && text.trim()) {
       plan.warnings.push('Kept unmarked rule: ' + path + '. Back it up and move it aside to install the managed version.');

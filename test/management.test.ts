@@ -93,7 +93,7 @@ test('doctor offline reports all five components without invoking npm', async (t
   const root = fixture(t);
   const f = fake();
   const report = await doctor({ offline: true, geminiHome: root, codexHome: root }, f.deps);
-  assert.deepEqual(Object.keys(report.components), ['agy-c', 'codex', 'desktop', 'codex-task', 'sdk']);
+  assert.deepEqual(Object.keys(report.components), ['agy-codex', 'codex', 'desktop', 'codex-task', 'sdk']);
   assert.ok(Object.values(report.components).every((component) => component.registry === 'offline' && component.latest === null));
   assert.equal(report.rules.agents.status, 'missing');
   assert.equal(report.auth.present, false);
@@ -102,7 +102,7 @@ test('doctor offline reports all five components without invoking npm', async (t
 
 test('upgrade honors --only, --no-rules, --no-restart-service, and dry-run', async (t) => {
   const geminiHome = join(fixture(t), 'unused');
-  assert.deepEqual(parseOnly('codex, agy-c,codex'), ['codex', 'agy-c']);
+  assert.deepEqual(parseOnly('codex, agy-codex,codex'), ['codex', 'agy-codex']);
   assert.throws(() => parseOnly('codex,sdk'), /--only expects/);
   const f = fake({ lookup: '9.5.2' });
   const dry = await upgrade({ geminiHome, only: 'codex-task', yes: true, rules: false, restartService: false, dryRun: true }, f.deps);

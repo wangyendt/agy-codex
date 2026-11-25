@@ -5,23 +5,23 @@ import { join } from 'node:path';
 import process from 'node:process';
 import { npm } from './npm.mjs';
 
-const temp = mkdtempSync(join(tmpdir(), 'agy-c-install-'));
+const temp = mkdtempSync(join(tmpdir(), 'agy-codex-install-'));
 try {
   const [{ filename }] = JSON.parse(npm(['pack', '--json', '--pack-destination', temp]));
   writeFileSync(join(temp, 'package.json'), '{"private":true}');
   npm(['install', '--ignore-scripts', '--no-audit', '--no-fund', '--prefer-offline', join(temp, filename)], {
     cwd: temp, stdio: ['ignore', 'ignore', 'pipe'],
   });
-  const installed = join(temp, 'node_modules', 'agy-c');
+  const installed = join(temp, 'node_modules', 'agy-codex');
   const run = (...args) => execFileSync(process.execPath, [join(installed, 'dist', 'cli.js'), ...args], { cwd: temp, encoding: 'utf8' });
   const manifest = JSON.parse(readFileSync(join(installed, 'package.json'), 'utf8'));
   if (run('--version').trim() !== manifest.version) throw new Error('CLI version does not match installed package.json');
-  const bin = join(temp, 'node_modules', '.bin', 'agy-c');
+  const bin = join(temp, 'node_modules', '.bin', 'agy-codex');
   if (process.platform === 'win32') {
     readFileSync(bin + '.cmd', 'utf8');
     // Verify npm's generated shim too; the command consists exclusively of fixed tokens.
     const machine = process.env.ComSpec ?? 'cmd.exe';
-    const throughShim = execFileSync(machine, ['/d', '/s', '/c', 'node_modules\\.bin\\agy-c.cmd --version'], {
+    const throughShim = execFileSync(machine, ['/d', '/s', '/c', 'node_modules\\.bin\\agy-codex.cmd --version'], {
       cwd: temp, encoding: 'utf8', windowsVerbatimArguments: true,
     });
     if (throughShim.trim() !== manifest.version) throw new Error('Invalid Windows CLI shim');
@@ -29,7 +29,7 @@ try {
     throw new Error('Invalid CLI executable');
   }
   for (const name of ['setup', 'doctor', 'upgrade', 'run', 'uninstall']) {
-    if (!run(name, '--help').includes('agy-c ' + name)) throw new Error('Missing help for ' + name);
+    if (!run(name, '--help').includes('agy-codex ' + name)) throw new Error('Missing help for ' + name);
   }
   const home = join(temp, 'gemini');
   const setup = JSON.parse(run('setup', '--gemini-home', home, '--no-install-deps', '--no-sync-skill', '--json'));

@@ -15,7 +15,7 @@ export interface ToolOptions {
 export const macDesktop = '/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex';
 
 export const packageNames = {
-  'agy-c': 'agy-c',
+  'agy-codex': 'agy-codex',
   codex: '@openai/codex',
   'codex-task': 'codex-task',
 } as const;
@@ -278,14 +278,14 @@ export function authStatus(home: string, now = Date.now()) {
 export async function versions(options: ToolOptions, offline: boolean, exec: Command, env: NodeJS.ProcessEnv) {
   const [codex, task, agyLatest, codexLatest, taskLatest, sdkLatest] = await Promise.all([
     findCodex(options, exec, env), findTask(options, exec, env),
-    latest(packageNames['agy-c'], options, offline, exec, env),
+    latest(packageNames['agy-codex'], options, offline, exec, env),
     latest(packageNames.codex, options, offline, exec, env),
     latest(packageNames['codex-task'], options, offline, exec, env),
     latest('@openai/codex-sdk', options, offline, exec, env),
   ]);
   const sdk = await sdkInfo(task);
   return {
-    'agy-c': component({ path: process.argv[1] ?? '', version: manifest.version }, agyLatest),
+    'agy-codex': component({ path: process.argv[1] ?? '', version: manifest.version }, agyLatest),
     codex: component(codex.standalone, codexLatest),
     desktop: component(codex.desktop, codexLatest),
     'codex-task': component(task, taskLatest),

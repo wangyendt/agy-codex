@@ -152,7 +152,7 @@ export async function doctor(options: ManagementOpts & { offline?: boolean; code
     ok: true,
     offline: Boolean(options.offline),
     platform: process.platform,
-    components: { 'agy-c': info['agy-c'], codex, desktop, 'codex-task': info['codex-task'], sdk },
+    components: { 'agy-codex': info['agy-codex'], codex, desktop, 'codex-task': info['codex-task'], sdk },
     selectedCodex: info.selectedCodex,
     auth: authStatus(resolve(options.codexHome ?? services.env.CODEX_HOME ?? join(homedir(), '.codex'))),
     rules: rulesStatus(geminiHome(options.geminiHome)),
@@ -167,7 +167,7 @@ export function parseOnly(only?: string): Component[] {
   if (only === undefined) return keys;
   const items = only.split(',').map((item) => item.trim());
   if (items.some((item) => !keys.includes(item as Component))) {
-    throw new Error('--only expects a comma-separated subset of agy-c, codex, codex-task.');
+    throw new Error('--only expects a comma-separated subset of agy-codex, codex, codex-task.');
   }
   return [...new Set(items)] as Component[];
 }
@@ -190,12 +190,12 @@ export async function upgrade(options: UpgradeOpts, services = deps()): Promise<
   const installed = await install(packages.map((name) => packageNames[name] + '@latest'), options, services, report, env);
   if (options.rules !== false) {
     let config: ChangedFiles | undefined;
-    if (installed && packages.includes('agy-c')) {
+    if (installed && packages.includes('agy-codex')) {
       // The current process still has the old templates in memory, even after a self-upgrade.
       const npm = npmExecutable(env);
       const globalPrefix = options.prefix ? resolve(options.prefix)
         : npm ? await services.exec(npm, ['prefix', '-g'], { env }).then((value) => value.code === 0 ? value.stdout.trim() : '') : '';
-      const updated = globalPrefix && prefixedBins('agy-c', globalPrefix).find(executable);
+      const updated = globalPrefix && prefixedBins('agy-codex', globalPrefix).find(executable);
       if (updated) {
         const args = ['setup', '--no-install-deps', '--json',
           '--gemini-home', geminiHome(options.geminiHome), ...npmFlags(options),
@@ -212,7 +212,7 @@ export async function upgrade(options: UpgradeOpts, services = deps()): Promise<
       }
       if (!config) {
         report.ok = false;
-        report.warnings.push('Could not refresh with the newly installed agy-c. Run agy-c setup to sync its templates.');
+        report.warnings.push('Could not refresh with the newly installed agy-codex. Run agy-codex setup to sync its templates.');
       }
     } else {
       config = await configure(options, services, env, Boolean(options.dryRun));

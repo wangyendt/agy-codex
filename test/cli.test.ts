@@ -108,7 +108,9 @@ test('run resumes saved workspace threads, --new replaces the mapping, and --for
 
   const fresh = invoke([...args, '--new', 'fresh']);
   assert.equal(fresh.status, 0, fresh.stderr);
-  assert.equal(JSON.parse(fresh.stdout).resumed, false);
+  const freshResult = JSON.parse(fresh.stdout) as RunReport;
+  assert.equal(freshResult.resumed, false);
+  assert.ok(JSON.parse(freshResult.text).argv.includes('--thread-source=agy-codex'));
   assert.equal(JSON.parse(readFileSync(state, 'utf8'))[realpathSync(root)], 'thread-fresh');
 
   const fork = invoke([...args, '--fork', 'thread-fresh', 'fork delta']);

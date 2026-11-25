@@ -7,6 +7,7 @@ import { managedFile, readOptional, writeAtomic } from './fs.js';
 import { launch } from './process.js';
 
 export const sandboxes = ['read-only', 'workspace-write', 'danger-full-access'] as const;
+export const defaultThreadSource = 'agy-codex';
 type Sandbox = (typeof sandboxes)[number];
 
 export interface RunOpts {
@@ -105,7 +106,8 @@ export function codexArgs(options: RunOpts, cwd: string, mode: RunMode, thread: 
   if (options.skipGitRepoCheck || !isGitWorkspace(cwd)) args.push('--skip-git-repo-check');
   if (options.model) args.push('--model=' + options.model);
   if (options.reasoning) args.push('-c', 'model_reasoning_effort=' + JSON.stringify(options.reasoning));
-  if (options.threadSource) args.push('--thread-source=' + options.threadSource);
+  const threadSource = options.threadSource ?? defaultThreadSource;
+  if (threadSource) args.push('--thread-source=' + threadSource);
   for (const image of options.image ?? []) args.push('--image=' + resolve(image));
   if (options.uncommitted) args.push('--uncommitted');
   if (options.base) args.push('--base=' + options.base);
@@ -203,7 +205,7 @@ export async function run(options: RunOpts, positional?: string): Promise<RunRep
     if (prompt && reviewTargets) throw new Error('Codex review accepts a review target or a custom prompt, not both.');
     const { env } = await detectProxy();
     const bin = override ? await probe(override, undefined, env) : (await findCodex({}, undefined, env)).selected;
-    if (!bin) throw new Error('No usable Codex binary found. Run agy-c doctor or agy-c setup.');
+    if (!bin) throw new Error('No usable Codex binary found. Run agy-codex doctor or agy-codex setup.');
     report.codexBin = bin.path;
     report.codexVersion = bin.version;
     if (!bin.version) throw new Error('Could not read the version of ' + bin.path);
@@ -223,7 +225,7 @@ export async function run(options: RunOpts, positional?: string): Promise<RunRep
     report.status = report.ok ? 'completed' : 'failed';
   } catch (error) {
     report.exitCode ||= 1;
-    process.stderr.write('agy-c: ' + (error instanceof Error ? error.message : String(error)) + '\n');
+    process.stderr.write('agy-codex: ' + (error instanceof Error ? error.message : String(error)) + '\n');
   }
   return report;
 }

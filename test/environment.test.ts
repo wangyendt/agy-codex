@@ -110,12 +110,12 @@ test('Windows settles npm batch shims to fixed Node/.exe paths without shell eva
 test('registry lookup separates offline, unpublished, failure, and verified versions', async () => {
   const env = process.env;
   const never: Command = async () => assert.fail('offline doctor called the registry');
-  assert.deepEqual(await latest('agy-c', {}, true, never, env), { version: null, status: 'offline' });
+  assert.deepEqual(await latest('agy-codex', {}, true, never, env), { version: null, status: 'offline' });
   const fixed = (code: number, stdout: string): Command => async (_file, args) => {
     assert.ok(!args.some((arg) => arg.startsWith('--logs-max')));
     return { code, stdout, stderr: 'private' };
   };
-  assert.deepEqual(await latest('agy-c', {}, false, fixed(1, '{"error":{"code":"E404"}}'), env), { version: null, status: 'unpublished' });
-  assert.deepEqual(await latest('agy-c', {}, false, fixed(1, ''), env), { version: null, status: 'unavailable' });
-  assert.deepEqual(await latest('agy-c', {}, false, fixed(0, '"0.1.1"'), env), { version: '0.1.1', status: 'ok' });
+  assert.deepEqual(await latest('agy-codex', {}, false, fixed(1, '{"error":{"code":"E404"}}'), env), { version: null, status: 'unpublished' });
+  assert.deepEqual(await latest('agy-codex', {}, false, fixed(1, ''), env), { version: null, status: 'unavailable' });
+  assert.deepEqual(await latest('agy-codex', {}, false, fixed(0, '"0.1.1"'), env), { version: '0.1.1', status: 'ok' });
 });

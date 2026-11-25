@@ -3,11 +3,11 @@ import { Command, Option } from 'commander';
 import { doctor, setup, shellCommand, uninstall, upgrade } from './management.js';
 import type { ManagementOpts } from './management.js';
 import { manifest } from './package.js';
-import { run, sandboxes } from './run.js';
+import { defaultThreadSource, run, sandboxes } from './run.js';
 import type { RunOpts } from './run.js';
 
 const cli = new Command()
-  .name('agy-c')
+  .name('agy-codex')
   .description('Connect Antigravity to Codex for repeatable engineering handoffs.')
   .version(manifest.version)
   .showHelpAfterError();
@@ -74,7 +74,7 @@ cli.command('doctor').description('Check tool versions, auth expiry, rules, and 
     const report = await doctor(options);
     if (options.json) { json(report); return; }
     const labels = {
-      'agy-c': 'agy-c',
+      'agy-codex': 'agy-codex',
       codex: '@openai/codex (standalone)',
       desktop: 'Codex Desktop (bundled CLI)',
       'codex-task': 'codex-task',
@@ -95,12 +95,12 @@ cli.command('doctor').description('Check tool versions, auth expiry, rules, and 
   });
 
 packages(files(cli.command('upgrade').description('Check npm versions, upgrade tools, and refresh rules')))
-  .option('--only <list>', 'comma-separated list: agy-c, codex, codex-task')
+  .option('--only <list>', 'comma-separated list: agy-codex, codex, codex-task')
   .option('--no-rules', 'skip refreshing rules and skills')
   .option('--no-restart-service', 'leave any active codex-task service running')
   .action((options) => manage(options, () => upgrade(options)));
 
-files(cli.command('uninstall').description('Remove agy-c managed rule blocks without deleting personal content'))
+files(cli.command('uninstall').description('Remove agy-codex managed rule blocks without deleting personal content'))
   .action((options: ManagementOpts) => manage(options, () => uninstall(options)));
 
 cli.command('run').description('Run Codex non-interactively and capture the final result')
@@ -120,7 +120,7 @@ cli.command('run').description('Run Codex non-interactively and capture the fina
   .option('--skip-git-repo-check', 'allow a non-Git workspace (automatically enabled outside Git)')
   .option('-m, --model <model>', 'Codex model override')
   .option('--reasoning <effort>', 'Codex model reasoning effort')
-  .option('--thread-source <source>', 'Codex thread source classification')
+  .option('--thread-source <source>', 'Codex thread source classification', defaultThreadSource)
   .option('-i, --image <path>', 'attach an image (repeatable)', (value: string, existing: string[]) => [...existing, value], [])
   .option('-o, --output <file>', 'write the final agent message to a UTF-8 file')
   .option('--events-log <file>', 'save raw Codex JSONL events')
@@ -136,6 +136,6 @@ cli.command('run').description('Run Codex non-interactively and capture the fina
 try {
   await cli.parseAsync(process.argv);
 } catch (error) {
-  process.stderr.write('agy-c: ' + (error instanceof Error ? error.message : String(error)) + '\n');
+  process.stderr.write('agy-codex: ' + (error instanceof Error ? error.message : String(error)) + '\n');
   process.exitCode = 1;
 }

@@ -7,6 +7,8 @@ import { apply, block, end, legacySpan, paths, planSetup, planUninstall, rulesSt
 import { fixture, put } from './fixture.js';
 
 const read = (file: string) => readFileSync(file, 'utf8');
+const previousStart = '<!-- agy-c:start -->';
+const previousEnd = '<!-- agy-c:end -->';
 
 test('managed blocks update idempotently and uninstall preserves surrounding CRLF text', (t) => {
   const geminiHome = fixture(t);
@@ -45,6 +47,31 @@ test('protocol uninstall removes the block but keeps user content and frontmatte
   assert.equal(block(read(path)), undefined);
 });
 
+test('setup migrates previous markers in place without duplicating blocks or changing user content', (t) => {
+  const geminiHome = fixture(t);
+  const { agents, protocol } = paths(geminiHome);
+  const oldBlock = [previousStart, 'Prefer `agy-c run`.', previousEnd, ''].join('\r\n');
+  const header = '---\r\ntrigger: always_on\r\n---\r\n\r\n';
+  const after = '\r\nPersonal policy.\r\n';
+  put(agents, 'Personal note.\r\n' + oldBlock + after);
+  put(protocol, header + oldBlock + after);
+
+  const report = apply(planSetup({ geminiHome }), false);
+  assert.deepEqual(report.warnings, []);
+  assert.deepEqual(report.files, [agents, protocol].map((path) => ({ path, action: 'write', migrated: true })));
+  assert.ok(read(agents).startsWith('Personal note.\r\n' + start + '\r\n'));
+  assert.ok(read(protocol).startsWith(header + start + '\r\n'));
+  for (const path of [agents, protocol]) {
+    const text = read(path);
+    assert.ok(text.endsWith(end + '\r\n' + after));
+    assert.equal(text.split(start).length, 2);
+    assert.equal(text.split(end).length, 2);
+    assert.ok(!text.includes(previousStart) && !text.includes(previousEnd));
+    assert.ok(text.includes('`agy-codex run`'));
+  }
+  assert.equal(planSetup({ geminiHome }).changes.length, 0);
+});
+
 test('keeps unmarked third-party rules and customized legacy-looking AGENTS content', (t) => {
   const geminiHome = fixture(t);
   const p = paths(geminiHome);
@@ -76,6 +103,8 @@ test('refuses malformed or duplicate marker pairs instead of overwriting', (t) =
   assert.throws(() => planUninstall({ geminiHome }), /expected one ordered pair/);
   assert.equal(rulesStatus(geminiHome).agents.status, 'invalid');
   assert.throws(() => block([start, end, start, end].join('\n')), /Invalid/);
+  assert.throws(() => block([previousStart, end].join('\n')), /Invalid/);
+  assert.throws(() => block([previousStart, previousEnd, start, end].join('\n')), /Invalid/);
   assert.equal(existsSync(p.protocol), false);
 });
 

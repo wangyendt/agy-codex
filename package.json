@@ -1,17 +1,17 @@
 {
-  "name": "agy-c",
+  "name": "agy-codex",
   "version": "0.1.0",
   "description": "Cross-platform Antigravity and Codex delegation toolkit",
   "type": "module",
   "author": "wang121ye",
   "license": "MIT",
-  "homepage": "https://github.com/wangyendt/agy-c#readme",
+  "homepage": "https://github.com/wangyendt/agy-codex#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wangyendt/agy-c.git"
+    "url": "git+https://github.com/wangyendt/agy-codex.git"
   },
   "bugs": {
-    "url": "https://github.com/wangyendt/agy-c/issues"
+    "url": "https://github.com/wangyendt/agy-codex/issues"
   },
   "keywords": [
     "antigravity",
@@ -21,7 +21,7 @@
     "typescript"
   ],
   "bin": {
-    "agy-c": "dist/cli.js"
+    "agy-codex": "dist/cli.js"
   },
   "files": [
     "dist",
